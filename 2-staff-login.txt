@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Staff sign-in — ParcelTrack UK</title>
+<title>Staff sign-in â€” ParcelTrack UK</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 /* ==========================================================================
-   ParcelTrack UK — design tokens
+   ParcelTrack UK â€” design tokens
    Inspired by British split-flap departure boards and shipping manifests.
    ========================================================================== */
 :root {
@@ -294,11 +294,11 @@ button { font-family: var(--font-body); cursor: pointer; }
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
 // Fill these in from your Supabase project:
-// Project Settings → API → Project URL / anon public key.
-// The anon key is safe to expose in client-side code — it only works
+// Project Settings â†’ API â†’ Project URL / anon public key.
+// The anon key is safe to expose in client-side code â€” it only works
 // within the limits of the Row Level Security policies in sql/schema.sql.
-const SUPABASE_URL = 'https://YOUR-PROJECT-REF.supabase.co';
-const SUPABASE_ANON_KEY = 'YOUR-ANON-PUBLIC-KEY';
+const SUPABASE_URL = 'https://rwnuvswppddbcbxgssnl.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_lX1MVqampSaP-0Z6tJx3KA_39NYNlPr';
 
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
