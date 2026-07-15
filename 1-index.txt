@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ParcelTrack UK — Track your delivery</title>
+<meta name="description" content="Track a UK parcel delivery live on a map." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+/* ==========================================================================
+   ParcelTrack UK — design tokens
+   Inspired by British split-flap departure boards and shipping manifests.
+   ========================================================================== */
+:root {
+  --paper: #FAFAF7;
+  --paper-dim: #F1EFE7;
+  --ink: #1B2430;
+  --ink-soft: #5B6470;
+  --line: #DCD8CC;
+  --accent: #E8A33C;
+  --board-bg: #14181F;
+  --board-fg: #F2C878;
+  --route: #3E6259;
+
+  --status-created: #5B6470;
+  --status-dispatched: #3F5B73;
+  --status-in_transit: #C98A2B;
+  --status-out_for_delivery: #C15B2C;
+  --status-delivered: #2F7A4D;
+  --status-exception: #B5452F;
+
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-body: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+
+  --radius: 4px;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.container { max-width: 720px; margin: 0 auto; padding: 0 24px; }
+.staff-body .container { max-width: 960px; }
+
+h1, h2 { font-family: var(--font-display); color: var(--ink); margin: 0 0 8px; }
+h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.01em; }
+h2 {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ink-soft);
+  margin-top: 40px;
+  font-weight: 600;
+}
+
+a { color: var(--ink); }
+p { color: var(--ink-soft); }
+
+:focus-visible { outline: 2px solid var(--route); outline-offset: 2px; }
+.hidden { display: none !important; }
+
+/* ---------- Header / footer ---------- */
+.site-header { border-bottom: 1px solid var(--line); padding: 20px 0; }
+.header-inner { display: flex; align-items: center; justify-content: space-between; }
+.brand {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.15rem;
+  color: var(--ink);
+  text-decoration: none;
+  letter-spacing: -0.01em;
+}
+.brand span { color: var(--accent); }
+.staff-link { font-size: 0.9rem; color: var(--ink-soft); text-decoration: none; border-bottom: 1px dashed var(--ink-soft); }
+.staff-link:hover { color: var(--ink); }
+
+.header-right { display: flex; align-items: center; gap: 16px; }
+.staff-email { font-family: var(--font-mono); font-size: 0.85rem; color: var(--ink-soft); }
+
+.site-footer { margin-top: 64px; border-top: 1px solid var(--line); padding: 20px 0 40px; }
+.site-footer p { font-size: 0.8rem; color: var(--ink-soft); margin: 0; }
+
+/* ---------- Hero / search ---------- */
+.hero { padding: 48px 0 24px; }
+.eyebrow {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ink-soft);
+  margin-bottom: 10px;
+}
+.hero p.lede { font-size: 1.05rem; margin: 0 0 24px; }
+
+.track-form { display: flex; gap: 10px; border-bottom: 2px solid var(--ink); padding-bottom: 4px; }
+.track-form input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: 1.25rem;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+  padding: 10px 4px;
+  min-width: 0;
+}
+.track-form input::placeholder { color: var(--line); }
+.track-form input:focus { outline: none; }
+
+.route-divider { border: none; border-top: 2px dashed var(--line); margin: 32px 0; }
+
+/* ---------- Buttons ---------- */
+button { font-family: var(--font-body); cursor: pointer; }
+
+.btn-primary {
+  background: var(--accent);
+  color: var(--ink);
+  border: none;
+  border-radius: var(--radius);
+  padding: 12px 22px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  white-space: nowrap;
+}
+.btn-primary:hover { background: #d9922f; }
+
+.btn-secondary {
+  background: transparent;
+  color: var(--ink);
+  border: 1.5px solid var(--ink);
+  border-radius: var(--radius);
+  padding: 10px 18px;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+.btn-secondary:hover { background: var(--paper-dim); }
+
+/* ---------- State messages ---------- */
+.state-message { padding: 20px 0; color: var(--ink-soft); font-size: 0.95rem; }
+.state-error { color: var(--status-exception); }
+
+/* ---------- Status board (signature element) ---------- */
+.status-board { display: inline-flex; flex-wrap: wrap; gap: 3px; background: var(--board-bg); padding: 14px 16px; border-radius: var(--radius); }
+.flap {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 1.4rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--board-fg);
+  min-width: 0.7em;
+  text-align: center;
+  transform-origin: 50% 55%;
+}
+.flap.flip { animation: flap-turn 0.45s ease; }
+@keyframes flap-turn {
+  0%   { transform: rotateX(0deg); opacity: 1; }
+  45%  { transform: rotateX(90deg); opacity: 0.5; }
+  55%  { transform: rotateX(90deg); opacity: 0.5; }
+  100% { transform: rotateX(0deg); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .flap.flip { animation: none; }
+}
+
+.status-row { display: flex; flex-wrap: wrap; align-items: center; gap: 20px; margin-bottom: 8px; }
+.route { font-family: var(--font-mono); font-size: 1rem; color: var(--ink); }
+.route-arrow { color: var(--ink-soft); margin: 0 8px; }
+.eta { font-size: 0.9rem; margin-top: 4px; }
+
+/* ---------- Status pill (compact, tables/lists) ---------- */
+.status-pill {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #fff;
+  padding: 4px 9px;
+  border-radius: var(--radius);
+  white-space: nowrap;
+}
+
+/* ---------- Map ---------- */
+#map, .pin-map {
+  height: 380px;
+  width: 100%;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  margin: 24px 0;
+  background: var(--paper-dim);
+}
+.pin-map { height: 260px; }
+
+/* ---------- Timeline (ledger) ---------- */
+.timeline { list-style: none; padding: 0; margin: 16px 0 0; }
+.timeline-item { display: flex; gap: 14px; padding: 14px 0; border-top: 1px solid var(--line); }
+.timeline-item:last-child { border-bottom: 1px solid var(--line); }
+.timeline-dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; }
+.timeline-content { flex: 1; min-width: 0; }
+.timeline-status { font-weight: 600; }
+.timeline-location { color: var(--ink-soft); font-size: 0.92rem; }
+.timeline-time { font-family: var(--font-mono); font-size: 0.8rem; color: var(--ink-soft); margin-top: 4px; }
+
+/* ---------- Forms (staff) ---------- */
+.card-form { display: flex; flex-direction: column; gap: 16px; max-width: 480px; margin-top: 20px; }
+.card-form label { display: flex; flex-direction: column; gap: 6px; font-size: 0.85rem; color: var(--ink-soft); }
+.card-form input, .card-form select {
+  font-family: var(--font-body);
+  font-size: 1rem;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  background: #fff;
+}
+.card-form input:focus, .card-form select:focus { border-color: var(--ink); outline: none; }
+.geocode-row { display: flex; gap: 8px; }
+.geocode-row input { flex: 1; }
+.coord-row { display: flex; gap: 16px; }
+.coord-row label { flex: 1; }
+.form-error { color: var(--status-exception); font-size: 0.85rem; margin: 0; }
+
+/* ---------- Auth card ---------- */
+.auth-card { max-width: 360px; margin: 80px auto; padding: 0 24px; text-align: left; }
+.auth-card h1 { margin-top: 24px; font-size: 1.4rem; text-transform: none; letter-spacing: -0.01em; }
+.auth-card form { display: flex; flex-direction: column; gap: 16px; margin-top: 24px; }
+.auth-card label { display: flex; flex-direction: column; gap: 6px; font-size: 0.85rem; color: var(--ink-soft); }
+.auth-card input { font-family: var(--font-body); font-size: 1rem; border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; }
+.auth-card button { margin-top: 4px; }
+
+/* ---------- Staff dashboard ---------- */
+.view-header { display: flex; align-items: center; justify-content: space-between; margin-top: 40px; margin-bottom: 8px; flex-wrap: wrap; gap: 12px; }
+.view-header h1 { margin: 0; text-transform: none; letter-spacing: -0.01em; }
+
+.parcel-table-wrap { overflow-x: auto; }
+.parcel-table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 0.92rem; }
+.parcel-table th {
+  text-align: left;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+  border-bottom: 2px solid var(--ink);
+  padding: 10px 8px;
+  white-space: nowrap;
+}
+.parcel-table td { padding: 12px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+
+.detail-summary { margin-top: 20px; }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 600px) {
+  .container { padding: 0 16px; }
+  h1 { font-size: 1.6rem; }
+  .track-form { flex-direction: column; align-items: stretch; }
+  .track-form input { font-size: 1.1rem; }
+  .flap { font-size: 1.1rem; }
+  .status-board { padding: 10px 12px; }
+  #map, .pin-map { height: 280px; }
+  .coord-row { flex-direction: column; gap: 12px; }
+  .view-header { flex-direction: column; align-items: flex-start; }
+}
+
+</style>
+</head>
+<body>
+<header class="site-header">
+  <div class="container header-inner">
+    <a href="index.html" class="brand">Parcel<span>Track</span> UK</a>
+    <a href="staff-login.html" class="staff-link">Staff sign-in</a>
+  </div>
+</header>
+
+<main class="container">
+  <section class="hero">
+    <span class="eyebrow">Track a UK delivery</span>
+    <h1>Where's my parcel?</h1>
+    <p class="lede">Enter your tracking number for live status and location.</p>
+    <form id="track-form" class="track-form">
+      <input id="tracking-input" type="text" placeholder="UK7F3K9QZ2A4" autocomplete="off" required />
+      <button type="submit" class="btn-primary">Track parcel</button>
+    </form>
+  </section>
+
+  <p id="empty-state" class="state-message hidden">No parcel found for that tracking number. Double-check it and try again.</p>
+  <p id="error-state" class="state-message state-error hidden">Something went wrong looking that up. Please try again in a moment.</p>
+
+  <section id="results" class="results hidden">
+    <hr class="route-divider" />
+    <div class="status-row">
+      <span id="status-board" class="status-board"></span>
+      <div class="route">
+        <span id="origin-value"></span>
+        <span class="route-arrow">→</span>
+        <span id="destination-value"></span>
+      </div>
+    </div>
+    <p class="eta">Estimated delivery: <strong id="eta-value">—</strong></p>
+
+    <div id="map"></div>
+
+    <h2>History</h2>
+    <ul id="timeline" class="timeline"></ul>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <p>ParcelTrack UK · Map data © OpenStreetMap contributors</p>
+  </div>
+</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+// Fill these in from your Supabase project:
+// Project Settings → API → Project URL / anon public key.
+// The anon key is safe to expose in client-side code — it only works
+// within the limits of the Row Level Security policies in sql/schema.sql.
+const SUPABASE_URL = 'https://YOUR-PROJECT-REF.supabase.co';
+const SUPABASE_ANON_KEY = 'YOUR-ANON-PUBLIC-KEY';
+
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const STATUS_META = {
+  created: { label: 'Created', color: '#5B6470' },
+  dispatched: { label: 'Dispatched', color: '#3F5B73' },
+  in_transit: { label: 'In Transit', color: '#C98A2B' },
+  out_for_delivery: { label: 'Out For Delivery', color: '#C15B2C' },
+  delivered: { label: 'Delivered', color: '#2F7A4D' },
+  exception: { label: 'Exception', color: '#B5452F' },
+};
+
+function statusLabel(status) {
+  return (STATUS_META[status] && STATUS_META[status].label) || status;
+}
+
+function statusColor(status) {
+  return (STATUS_META[status] && STATUS_META[status].color) || '#5B6470';
+}
+
+// Renders a status as a row of "split-flap" character tiles inside `el`
+// and triggers the flip-in animation. Used for the one or two hero status
+// displays on a page — not for compact rows in a table.
+function renderStatusBoard(el, status) {
+  const label = statusLabel(status).toUpperCase();
+  el.innerHTML = '';
+  [...label].forEach((ch, i) => {
+    const span = document.createElement('span');
+    span.className = 'flap';
+    span.textContent = ch === ' ' ? '\u00A0' : ch;
+    span.style.animationDelay = `${i * 25}ms`;
+    el.appendChild(span);
+  });
+  requestAnimationFrame(() => {
+    el.querySelectorAll('.flap').forEach((s) => s.classList.add('flip'));
+  });
+}
+
+const form = document.getElementById('track-form');
+const input = document.getElementById('tracking-input');
+const resultsEl = document.getElementById('results');
+const emptyStateEl = document.getElementById('empty-state');
+const errorEl = document.getElementById('error-state');
+const statusBoardEl = document.getElementById('status-board');
+const originEl = document.getElementById('origin-value');
+const destinationEl = document.getElementById('destination-value');
+const etaEl = document.getElementById('eta-value');
+const timelineEl = document.getElementById('timeline');
+
+let map;
+let pathLine = null;
+let markers = [];
+let currentChannel = null;
+
+function initMap() {
+  map = L.map('map').setView([54.5, -3.5], 6);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors',
+    maxZoom: 18,
+  }).addTo(map);
+}
+initMap();
+
+function clearMapLayers() {
+  markers.forEach((m) => map.removeLayer(m));
+  markers = [];
+  if (pathLine) {
+    map.removeLayer(pathLine);
+    pathLine = null;
+  }
+}
+
+function popupHTML(e) {
+  const time = new Date(e.created_at).toLocaleString('en-GB');
+  return `<strong>${e.location_name}</strong><br>${time}`;
+}
+
+function renderMapEvents(events) {
+  clearMapLayers();
+  if (!events.length) return;
+
+  const latlngs = events.map((e) => [e.latitude, e.longitude]);
+  pathLine = L.polyline(latlngs, { color: '#3E6259', weight: 3, opacity: 0.7 }).addTo(map);
+
+  events.forEach((e, i) => {
+    const isLast = i === events.length - 1;
+    const marker = L.circleMarker([e.latitude, e.longitude], {
+      radius: isLast ? 9 : 5,
+      color: isLast ? '#C98A2B' : '#9BA3AC',
+      fillColor: isLast ? '#C98A2B' : '#C8CDD2',
+      fillOpacity: 1,
+      weight: 2,
+    }).addTo(map);
+    marker.bindPopup(popupHTML(e));
+    markers.push(marker);
+  });
+
+  map.fitBounds(pathLine.getBounds(), { padding: [40, 40], maxZoom: 12 });
+}
+
+function timelineItemNode(e) {
+  const li = document.createElement('li');
+  li.className = 'timeline-item';
+  const time = new Date(e.created_at).toLocaleString('en-GB', {
+    day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
+  });
+  li.innerHTML = `
+    <span class="timeline-dot" style="background:${statusColor(e.status)}"></span>
+    <div class="timeline-content">
+      <div class="timeline-status">${statusLabel(e.status)}</div>
+      <div class="timeline-location">${e.location_name}${e.note ? ' — ' + e.note : ''}</div>
+      <div class="timeline-time">${time}</div>
+    </div>
+  `;
+  return li;
+}
+
+function renderTimeline(events) {
+  timelineEl.innerHTML = '';
+  [...events].reverse().forEach((e) => timelineEl.appendChild(timelineItemNode(e)));
+}
+
+function prependTimelineItem(e) {
+  timelineEl.prepend(timelineItemNode(e));
+}
+
+function addLiveEvent(event) {
+  const existingLatLngs = pathLine ? pathLine.getLatLngs() : [];
+  existingLatLngs.push([event.latitude, event.longitude]);
+  if (pathLine) map.removeLayer(pathLine);
+  pathLine = L.polyline(existingLatLngs, { color: '#3E6259', weight: 3, opacity: 0.7 }).addTo(map);
+
+  markers.forEach((m) => m.setStyle({ radius: 5, color: '#9BA3AC', fillColor: '#C8CDD2' }));
+  const marker = L.circleMarker([event.latitude, event.longitude], {
+    radius: 9, color: '#C98A2B', fillColor: '#C98A2B', fillOpacity: 1, weight: 2,
+  }).addTo(map);
+  marker.bindPopup(popupHTML(event));
+  markers.push(marker);
+  map.flyTo([event.latitude, event.longitude], 11, { duration: 1 });
+
+  prependTimelineItem(event);
+  renderStatusBoard(statusBoardEl, event.status);
+}
+
+function showState(state) {
+  resultsEl.classList.toggle('hidden', state !== 'results');
+  emptyStateEl.classList.toggle('hidden', state !== 'empty');
+  errorEl.classList.toggle('hidden', state !== 'error');
+}
+
+async function trackParcel(trackingNumber) {
+  showState(null);
+  if (currentChannel) {
+    supabaseClient.removeChannel(currentChannel);
+    currentChannel = null;
+  }
+
+  const { data: parcels, error } = await supabaseClient.rpc('track_parcel', {
+    p_tracking_number: trackingNumber.trim(),
+  });
+
+  if (error) {
+    console.error(error);
+    showState('error');
+    return;
+  }
+  if (!parcels || parcels.length === 0) {
+    showState('empty');
+    return;
+  }
+
+  const parcel = parcels[0];
+  originEl.textContent = parcel.origin;
+  destinationEl.textContent = parcel.destination;
+  etaEl.textContent = parcel.estimated_delivery
+    ? new Date(parcel.estimated_delivery).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+    : 'Not yet available';
+  renderStatusBoard(statusBoardEl, parcel.status);
+
+  const { data: events, error: eventsError } = await supabaseClient
+    .from('tracking_events')
+    .select('*')
+    .eq('parcel_id', parcel.id)
+    .order('created_at', { ascending: true });
+
+  if (eventsError) {
+    console.error(eventsError);
+    showState('error');
+    return;
+  }
+
+  renderMapEvents(events || []);
+  renderTimeline(events || []);
+  showState('results');
+
+  currentChannel = supabaseClient
+    .channel('tracking-' + parcel.id)
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'tracking_events',
+      filter: `parcel_id=eq.${parcel.id}`,
+    }, (payload) => addLiveEvent(payload.new))
+    .subscribe();
+}
+
+form.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const value = input.value.trim();
+  if (!value) return;
+  trackParcel(value);
+});
+</script>
+</body>
+</html>
