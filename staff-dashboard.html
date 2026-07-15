@@ -229,9 +229,37 @@ button { font-family: var(--font-body); cursor: pointer; }
 .card-form input:focus, .card-form select:focus { border-color: var(--ink); outline: none; }
 .geocode-row { display: flex; gap: 8px; }
 .geocode-row input { flex: 1; }
-.coord-row { display: flex; gap: 16px; }
-.coord-row label { flex: 1; }
+.coord-row { display: flex; gap: 16px; flex-wrap: wrap; }
+.coord-row label { flex: 1; min-width: 100px; }
+.checkbox-row { flex-direction: row !important; align-items: center; gap: 8px !important; }
+.checkbox-row input[type="checkbox"] { width: auto; }
 .form-error { color: var(--status-exception); font-size: 0.85rem; margin: 0; }
+
+/* ---------- Full shipment details (collapsible ledger) ---------- */
+.detail-full-info { margin-top: 24px; border: 1px solid var(--line); border-radius: var(--radius); padding: 4px 16px; }
+.detail-full-info summary {
+  cursor: pointer;
+  padding: 12px 0;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+}
+.info-grid { padding: 4px 0 16px; }
+.info-section-title {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  margin: 18px 0 6px;
+}
+.info-section-title:first-child { margin-top: 0; }
+.info-row { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--paper-dim); font-size: 0.9rem; }
+.info-label { color: var(--ink-soft); flex-shrink: 0; }
+.info-value { color: var(--ink); text-align: right; }
 
 /* ---------- Auth card ---------- */
 .auth-card { max-width: 360px; margin: 80px auto; padding: 0 24px; text-align: left; }
@@ -312,10 +340,65 @@ button { font-family: var(--font-body); cursor: pointer; }
       <button class="btn-secondary back-btn" data-back="view-list">← Back to list</button>
     </div>
     <form id="new-parcel-form" class="card-form">
-      <label>Recipient name <input type="text" id="np-recipient" required /></label>
+      <h2>Sender information</h2>
+      <label>Full name <input type="text" id="np-sender-name" required /></label>
+      <label>Phone number <input type="tel" id="np-sender-phone" required /></label>
+      <label>Email (optional) <input type="email" id="np-sender-email" /></label>
+      <label>Address <input type="text" id="np-sender-address" required /></label>
+      <label>City <input type="text" id="np-sender-city" required /></label>
+      <label>Country <input type="text" id="np-sender-country" required /></label>
+      <label>Postcode (optional) <input type="text" id="np-sender-postcode" /></label>
+
+      <h2>Receiver information</h2>
+      <label>Full name <input type="text" id="np-receiver-name" required /></label>
+      <label>Phone number <input type="tel" id="np-receiver-phone" required /></label>
+      <label>Email (optional) <input type="email" id="np-receiver-email" /></label>
+      <label>Delivery address <input type="text" id="np-receiver-address" required /></label>
+      <label>City <input type="text" id="np-receiver-city" required /></label>
+      <label>Country <input type="text" id="np-receiver-country" required /></label>
+      <label>Postcode <input type="text" id="np-receiver-postcode" required /></label>
+
+      <h2>Parcel information</h2>
+      <label>Description <input type="text" id="np-description" placeholder="e.g. Electronics, Documents, Clothes" required /></label>
+      <label>Weight (kg) <input type="number" step="0.01" min="0" id="np-weight" required /></label>
+      <div class="coord-row">
+        <label>Length (cm) <input type="number" step="0.1" min="0" id="np-length" required /></label>
+        <label>Width (cm) <input type="number" step="0.1" min="0" id="np-width" required /></label>
+        <label>Height (cm) <input type="number" step="0.1" min="0" id="np-height" required /></label>
+      </div>
+      <label>Number of packages <input type="number" step="1" min="1" id="np-packages" value="1" required /></label>
+      <label>Declared value (£, optional) <input type="number" step="0.01" min="0" id="np-value" /></label>
+      <label class="checkbox-row"><input type="checkbox" id="np-fragile" /> Fragile</label>
+      <label>Special handling instructions (optional) <input type="text" id="np-instructions" /></label>
+
+      <h2>Shipping details</h2>
+      <label>Service type
+        <select id="np-service">
+          <option value="standard">Standard</option>
+          <option value="express">Express</option>
+          <option value="overnight">Overnight</option>
+        </select>
+      </label>
+      <label>Shipping date <input type="date" id="np-shipping-date" required /></label>
+      <label>Expected delivery date (optional) <input type="date" id="np-eta" /></label>
       <label>Origin <input type="text" id="np-origin" placeholder="e.g. Leeds Depot" required /></label>
       <label>Destination <input type="text" id="np-destination" placeholder="e.g. Manchester, M1 1AE" required /></label>
-      <label>Estimated delivery <input type="date" id="np-eta" /></label>
+      <label>Shipping cost (£, optional) <input type="number" step="0.01" min="0" id="np-cost" /></label>
+      <label>Payment status
+        <select id="np-payment-status">
+          <option value="unpaid">Unpaid</option>
+          <option value="paid">Paid</option>
+        </select>
+      </label>
+      <label>Payment method
+        <select id="np-payment-method">
+          <option value="card">Card</option>
+          <option value="cash">Cash</option>
+          <option value="bank_transfer">Bank Transfer</option>
+          <option value="other">Other</option>
+        </select>
+      </label>
+
       <p id="new-parcel-error" class="form-error hidden"></p>
       <button type="submit" class="btn-primary">Create parcel</button>
     </form>
@@ -335,6 +418,11 @@ button { font-family: var(--font-body); cursor: pointer; }
         <span id="detail-destination"></span>
       </div>
     </div>
+
+    <details class="detail-full-info">
+      <summary>Full shipment details</summary>
+      <div id="detail-info-grid" class="info-grid"></div>
+    </details>
 
     <h2>History</h2>
     <ul id="detail-timeline" class="timeline"></ul>
@@ -457,7 +545,7 @@ async function loadParcelList() {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${p.tracking_number}</td>
-      <td>${p.recipient_name}</td>
+      <td>${p.receiver_name}</td>
       <td>${p.destination}</td>
       <td><span class="status-pill" style="background:${statusColor(p.status)}">${statusLabel(p.status)}</span></td>
       <td>${fmtDate(p.updated_at)}</td>
@@ -490,10 +578,48 @@ document.getElementById('new-parcel-form').addEventListener('submit', async (e) 
   const errorEl = document.getElementById('new-parcel-error');
   errorEl.classList.add('hidden');
 
-  const recipient_name = document.getElementById('np-recipient').value.trim();
-  const origin = document.getElementById('np-origin').value.trim();
-  const destination = document.getElementById('np-destination').value.trim();
-  const estimated_delivery = document.getElementById('np-eta').value || null;
+  const val = (id) => document.getElementById(id).value.trim();
+  const numOrNull = (id) => {
+    const v = document.getElementById(id).value;
+    return v === '' ? null : parseFloat(v);
+  };
+
+  const payload = {
+    sender_name: val('np-sender-name'),
+    sender_phone: val('np-sender-phone'),
+    sender_email: val('np-sender-email') || null,
+    sender_address: val('np-sender-address'),
+    sender_city: val('np-sender-city'),
+    sender_country: val('np-sender-country'),
+    sender_postcode: val('np-sender-postcode') || null,
+
+    receiver_name: val('np-receiver-name'),
+    receiver_phone: val('np-receiver-phone'),
+    receiver_email: val('np-receiver-email') || null,
+    receiver_address: val('np-receiver-address'),
+    receiver_city: val('np-receiver-city'),
+    receiver_country: val('np-receiver-country'),
+    receiver_postcode: val('np-receiver-postcode'),
+
+    parcel_description: val('np-description'),
+    weight_kg: numOrNull('np-weight'),
+    length_cm: numOrNull('np-length'),
+    width_cm: numOrNull('np-width'),
+    height_cm: numOrNull('np-height'),
+    num_packages: parseInt(document.getElementById('np-packages').value, 10) || 1,
+    declared_value: numOrNull('np-value'),
+    fragile: document.getElementById('np-fragile').checked,
+    special_instructions: val('np-instructions') || null,
+
+    service_type: val('np-service'),
+    shipping_date: document.getElementById('np-shipping-date').value || null,
+    estimated_delivery: document.getElementById('np-eta').value || null,
+    origin: val('np-origin'),
+    destination: val('np-destination'),
+    shipping_cost: numOrNull('np-cost'),
+    payment_status: val('np-payment-status'),
+    payment_method: val('np-payment-method'),
+  };
 
   let attempts = 0;
   let created = null;
@@ -504,7 +630,7 @@ document.getElementById('new-parcel-form').addEventListener('submit', async (e) 
     const tracking_number = generateTrackingNumber();
     const { data, error } = await supabaseClient
       .from('parcels')
-      .insert({ tracking_number, recipient_name, origin, destination, estimated_delivery })
+      .insert({ tracking_number, ...payload })
       .select()
       .single();
 
@@ -541,10 +667,11 @@ async function openDetail(parcelId) {
   }
 
   currentParcel = parcel;
-  document.getElementById('detail-title').textContent = `${parcel.tracking_number} — ${parcel.recipient_name}`;
+  document.getElementById('detail-title').textContent = `${parcel.tracking_number} — ${parcel.receiver_name}`;
   document.getElementById('detail-origin').textContent = parcel.origin;
   document.getElementById('detail-destination').textContent = parcel.destination;
   renderStatusBoard(document.getElementById('detail-status-board'), parcel.status);
+  renderDetailInfo(parcel);
 
   await loadDetailTimeline(parcelId);
 
@@ -571,6 +698,51 @@ async function openDetail(parcelId) {
     }
     pinMap.invalidateSize();
   }, 0);
+}
+
+function renderDetailInfo(p) {
+  const grid = document.getElementById('detail-info-grid');
+  const row = (label, value) =>
+    value === null || value === undefined || value === ''
+      ? ''
+      : `<div class="info-row"><span class="info-label">${label}</span><span class="info-value">${value}</span></div>`;
+  const section = (title) => `<div class="info-section-title">${title}</div>`;
+  const money = (v) => (v === null || v === undefined ? '' : `£${Number(v).toFixed(2)}`);
+  const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1).replace('_', ' ') : '');
+
+  const senderAddress = [p.sender_address, p.sender_city, p.sender_country, p.sender_postcode].filter(Boolean).join(', ');
+  const receiverAddress = [p.receiver_address, p.receiver_city, p.receiver_country, p.receiver_postcode].filter(Boolean).join(', ');
+  const dimensions = (p.length_cm && p.width_cm && p.height_cm) ? `${p.length_cm} × ${p.width_cm} × ${p.height_cm} cm` : '';
+
+  grid.innerHTML = `
+    ${section('Sender')}
+    ${row('Name', p.sender_name)}
+    ${row('Phone', p.sender_phone)}
+    ${row('Email', p.sender_email)}
+    ${row('Address', senderAddress)}
+
+    ${section('Receiver')}
+    ${row('Name', p.receiver_name)}
+    ${row('Phone', p.receiver_phone)}
+    ${row('Email', p.receiver_email)}
+    ${row('Address', receiverAddress)}
+
+    ${section('Parcel')}
+    ${row('Description', p.parcel_description)}
+    ${row('Weight', p.weight_kg ? `${p.weight_kg} kg` : '')}
+    ${row('Dimensions', dimensions)}
+    ${row('Packages', p.num_packages)}
+    ${row('Declared value', money(p.declared_value))}
+    ${row('Fragile', p.fragile ? 'Yes' : 'No')}
+    ${row('Special instructions', p.special_instructions)}
+
+    ${section('Shipping')}
+    ${row('Service', cap(p.service_type))}
+    ${row('Shipping date', p.shipping_date ? new Date(p.shipping_date).toLocaleDateString('en-GB') : '')}
+    ${row('Shipping cost', money(p.shipping_cost))}
+    ${row('Payment status', cap(p.payment_status))}
+    ${row('Payment method', cap(p.payment_method))}
+  `;
 }
 
 async function loadDetailTimeline(parcelId) {
