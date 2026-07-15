@@ -377,8 +377,8 @@ button { font-family: var(--font-body); cursor: pointer; }
 // Project Settings → API → Project URL / anon public key.
 // The anon key is safe to expose in client-side code — it only works
 // within the limits of the Row Level Security policies in sql/schema.sql.
-const SUPABASE_URL = 'https://YOUR-PROJECT-REF.supabase.co';
-const SUPABASE_ANON_KEY = 'YOUR-ANON-PUBLIC-KEY';
+const SUPABASE_URL = 'https://rwnuvswppddbcbxgssnl.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_lX1MVqampSaP-0Z6tJx3KA_39NYNlPr';
 
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
