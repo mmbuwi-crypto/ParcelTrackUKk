@@ -179,6 +179,7 @@ button { font-family: var(--font-body); cursor: pointer; }
 .route { font-family: var(--font-mono); font-size: 1rem; color: var(--ink); }
 .route-arrow { color: var(--ink-soft); margin: 0 8px; }
 .eta { font-size: 0.9rem; margin-top: 4px; }
+.delivery-options { margin: 12px 0 0; }
 
 /* ---------- Status pill (compact, tables/lists) ---------- */
 .status-pill {
@@ -398,6 +399,25 @@ button { font-family: var(--font-body); cursor: pointer; }
           <option value="other">Other</option>
         </select>
       </label>
+      <label>Signature option
+        <select id="np-signature">
+          <option value="none">No signature required</option>
+          <option value="signature_required">Signature required</option>
+          <option value="adult_signature_required">Adult signature required (21+)</option>
+          <option value="indirect">Indirect — neighbour may sign</option>
+        </select>
+      </label>
+      <label class="checkbox-row"><input type="checkbox" id="np-hold" /> Hold at location for pickup</label>
+      <label>Hold location (if applicable) <input type="text" id="np-hold-location" placeholder="e.g. Leeds Depot, 14 High St" /></label>
+      <label>Preferred delivery window
+        <select id="np-window">
+          <option value="any">Any time</option>
+          <option value="morning">Morning (8am–12pm)</option>
+          <option value="afternoon">Afternoon (12pm–5pm)</option>
+          <option value="evening">Evening (5pm–8pm)</option>
+        </select>
+      </label>
+      <label>Delivery instructions for driver (optional, internal) <input type="text" id="np-delivery-instructions" /></label>
 
       <p id="new-parcel-error" class="form-error hidden"></p>
       <button type="submit" class="btn-primary">Create parcel</button>
@@ -477,6 +497,20 @@ const STATUS_META = {
   out_for_delivery: { label: 'Out For Delivery', color: '#C15B2C' },
   delivered: { label: 'Delivered', color: '#2F7A4D' },
   exception: { label: 'Exception', color: '#B5452F' },
+};
+
+const SIGNATURE_LABELS = {
+  none: 'No signature required',
+  signature_required: 'Signature required',
+  adult_signature_required: 'Adult signature required (21+)',
+  indirect: 'Indirect — neighbour may sign',
+};
+
+const DELIVERY_WINDOW_LABELS = {
+  any: 'Any time',
+  morning: 'Morning (8am–12pm)',
+  afternoon: 'Afternoon (12pm–5pm)',
+  evening: 'Evening (5pm–8pm)',
 };
 
 function statusLabel(status) {
@@ -619,6 +653,12 @@ document.getElementById('new-parcel-form').addEventListener('submit', async (e) 
     shipping_cost: numOrNull('np-cost'),
     payment_status: val('np-payment-status'),
     payment_method: val('np-payment-method'),
+
+    signature_option: val('np-signature'),
+    hold_at_location: document.getElementById('np-hold').checked,
+    hold_location_name: val('np-hold-location') || null,
+    delivery_window: val('np-window'),
+    delivery_instructions: val('np-delivery-instructions') || null,
   };
 
   let attempts = 0;
@@ -742,6 +782,12 @@ function renderDetailInfo(p) {
     ${row('Shipping cost', money(p.shipping_cost))}
     ${row('Payment status', cap(p.payment_status))}
     ${row('Payment method', cap(p.payment_method))}
+
+    ${section('Delivery options')}
+    ${row('Signature', SIGNATURE_LABELS[p.signature_option] || '')}
+    ${row('Hold at location', p.hold_at_location ? (p.hold_location_name || 'Yes') : 'No')}
+    ${row('Delivery window', DELIVERY_WINDOW_LABELS[p.delivery_window] || '')}
+    ${row('Driver instructions', p.delivery_instructions)}
   `;
 }
 
