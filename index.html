@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en-GB">
-<head> 
+<head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>ParcelTrack UK — Track your delivery</title>
@@ -180,6 +180,7 @@ button { font-family: var(--font-body); cursor: pointer; }
 .route { font-family: var(--font-mono); font-size: 1rem; color: var(--ink); }
 .route-arrow { color: var(--ink-soft); margin: 0 8px; }
 .eta { font-size: 0.9rem; margin-top: 4px; }
+.delivery-options { margin: 12px 0 0; }
 
 /* ---------- Status pill (compact, tables/lists) ---------- */
 .status-pill {
@@ -230,9 +231,37 @@ button { font-family: var(--font-body); cursor: pointer; }
 .card-form input:focus, .card-form select:focus { border-color: var(--ink); outline: none; }
 .geocode-row { display: flex; gap: 8px; }
 .geocode-row input { flex: 1; }
-.coord-row { display: flex; gap: 16px; }
-.coord-row label { flex: 1; }
+.coord-row { display: flex; gap: 16px; flex-wrap: wrap; }
+.coord-row label { flex: 1; min-width: 100px; }
+.checkbox-row { flex-direction: row !important; align-items: center; gap: 8px !important; }
+.checkbox-row input[type="checkbox"] { width: auto; }
 .form-error { color: var(--status-exception); font-size: 0.85rem; margin: 0; }
+
+/* ---------- Full shipment details (collapsible ledger) ---------- */
+.detail-full-info { margin-top: 24px; border: 1px solid var(--line); border-radius: var(--radius); padding: 4px 16px; }
+.detail-full-info summary {
+  cursor: pointer;
+  padding: 12px 0;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+}
+.info-grid { padding: 4px 0 16px; }
+.info-section-title {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  margin: 18px 0 6px;
+}
+.info-section-title:first-child { margin-top: 0; }
+.info-row { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--paper-dim); font-size: 0.9rem; }
+.info-label { color: var(--ink-soft); flex-shrink: 0; }
+.info-value { color: var(--ink); text-align: right; }
 
 /* ---------- Auth card ---------- */
 .auth-card { max-width: 360px; margin: 80px auto; padding: 0 24px; text-align: left; }
@@ -311,6 +340,7 @@ button { font-family: var(--font-body); cursor: pointer; }
       </div>
     </div>
     <p class="eta">Estimated delivery: <strong id="eta-value">—</strong></p>
+    <div id="delivery-options" class="delivery-options hidden"></div>
 
     <div id="map"></div>
 
@@ -344,6 +374,20 @@ const STATUS_META = {
   out_for_delivery: { label: 'Out For Delivery', color: '#C15B2C' },
   delivered: { label: 'Delivered', color: '#2F7A4D' },
   exception: { label: 'Exception', color: '#B5452F' },
+};
+
+const SIGNATURE_LABELS = {
+  none: 'No signature required',
+  signature_required: 'Signature required',
+  adult_signature_required: 'Adult signature required (21+)',
+  indirect: 'Indirect — neighbour may sign',
+};
+
+const DELIVERY_WINDOW_LABELS = {
+  any: 'Any time',
+  morning: 'Morning (8am–12pm)',
+  afternoon: 'Afternoon (12pm–5pm)',
+  evening: 'Evening (5pm–8pm)',
 };
 
 function statusLabel(status) {
@@ -478,6 +522,22 @@ function addLiveEvent(event) {
   renderStatusBoard(statusBoardEl, event.status);
 }
 
+function renderDeliveryOptions(parcel) {
+  const el = document.getElementById('delivery-options');
+  const rows = [];
+  if (parcel.signature_option && parcel.signature_option !== 'none') {
+    rows.push(`<div class="info-row"><span class="info-label">Signature</span><span class="info-value">${SIGNATURE_LABELS[parcel.signature_option] || parcel.signature_option}</span></div>`);
+  }
+  if (parcel.hold_at_location) {
+    rows.push(`<div class="info-row"><span class="info-label">Hold for pickup</span><span class="info-value">${parcel.hold_location_name || 'Yes'}</span></div>`);
+  }
+  if (parcel.delivery_window && parcel.delivery_window !== 'any') {
+    rows.push(`<div class="info-row"><span class="info-label">Delivery window</span><span class="info-value">${DELIVERY_WINDOW_LABELS[parcel.delivery_window] || parcel.delivery_window}</span></div>`);
+  }
+  el.innerHTML = rows.join('');
+  el.classList.toggle('hidden', rows.length === 0);
+}
+
 function showState(state) {
   resultsEl.classList.toggle('hidden', state !== 'results');
   emptyStateEl.classList.toggle('hidden', state !== 'empty');
@@ -512,6 +572,7 @@ async function trackParcel(trackingNumber) {
     ? new Date(parcel.estimated_delivery).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
     : 'Not yet available';
   renderStatusBoard(statusBoardEl, parcel.status);
+  renderDeliveryOptions(parcel);
 
   const { data: events, error: eventsError } = await supabaseClient
     .from('tracking_events')
